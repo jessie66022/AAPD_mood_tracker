@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+:root {
+  --color-bg-base: #faf7f2;
+  --color-bg-surface: #ffffff;
+  --color-bg-alt-base: rgba(102, 78, 41, 0.1);
+  --color-primary: #80604d;
+  --color-primary-muted: rgba(128, 96, 77, 0.3);
+  --color-text-primary: #3d3a35;
+  --color-text-secondary: rgba(61, 58, 53, 0.6);
+  --color-text-muted: #bab6af;
+  --color-icon-primary: #0f172a;
+  --color-success-surface: #64804d;
+  --font-pingfang: "PingFang TC", "PingFang SC", "Noto Sans TC", "Microsoft JhengHei", -apple-system, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #e5e0d8;
+  font-family: var(--font-pingfang);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+/* Native-app feel for in-frame scroll areas (e.g. Review's calendar/list) — scrolls, no visible scrollbar. */
+.scroll-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* Home mood ring animation. The ring is an inline SVG (see HomeScreen.jsx): a <image> of the
+   conic-gradient donut, revealed through an SVG <mask> whose white shape is a round-capped
+   stroked arc. Three composed effects — the label, + icon, and greeting stay static:
+
+   1. "breathing" (ring-breathe): saturation swells to a vivid peak then settles back to pastel
+      on a calm 3s cycle (animates `filter` on the whole <svg>).
+   2. "flow" (ring-flow): the conic gradient spins clockwise around the ring on a slow 12s loop
+      (animates the <image>'s `transform`). The ring's resting -90deg orientation (purple seam at
+      top) is baked into the keyframes' start/end so the spin composes with it in one transform.
+      Seamless because the gradient wraps back to its first color at 360deg.
+   3. entrance "draw-on" (ring-draw-on): Figma node 193:6393, arcDataEndingAngle 0.651→6.377 rad.
+      The mask arc grows from ~37deg to a full circle over ~975ms via `stroke-dasharray` (the arc
+      uses pathLength=360 so dash units read as degrees). `stroke-linecap: round` gives the
+      sweeping ends the rounded caps from Figma's corner-radius-100 arc. The arc is rotated -90deg
+      so it starts at 12 o'clock and fills clockwise, closing back at the top. Plays once on mount;
+      `forwards` holds the fully-revealed ring. The mask sits on a non-rotated group, so it stays
+      in screen space while the gradient <image> spins underneath. */
+@keyframes ring-breathe {
+  0%,
+  100% {
+    filter: saturate(1);
+  }
+  50% {
+    filter: saturate(1.65) brightness(1.02);
+  }
+}
+
+@keyframes ring-flow {
+  from {
+    transform: rotate(-90deg);
+  }
+  to {
+    transform: rotate(270deg);
+  }
+}
+
+.ring-breathe {
+  animation: ring-breathe 3s ease-in-out infinite;
+}
+
+.ring-flow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ring-flow 12s linear infinite;
+}
+
+@keyframes ring-draw-on {
+  from {
+    stroke-dasharray: 37.29 360;
+  }
+  to {
+    stroke-dasharray: 360 360;
+  }
+}
+
+.ring-reveal-arc {
+  stroke-dasharray: 360 360;
+  animation: ring-draw-on 0.973s cubic-bezier(0.9005, 0.00047, 0.58, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring-breathe {
+    animation: none;
+  }
+  .ring-flow {
+    animation: none;
+    transform: rotate(-90deg);
+  }
+  /* Skip the draw-on; the arc rests fully revealed (dasharray 360 360 = full ring). */
+  .ring-reveal-arc {
+    animation: none;
+  }
+}
+
+/* Plain fade for navigations that opt into viewTransition (currently: entering/leaving 問熊熊 — see TabBar.jsx). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.22s;
+  animation-timing-function: ease-out;
+}
