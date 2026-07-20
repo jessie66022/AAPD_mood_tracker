@@ -5,7 +5,7 @@ import chevron from "../assets/shared/chevron.svg";
 export default function NoteCard() {
   return (
     <Link
-      to="/ask-bear"
+      to="/AAPD_mood_tracker/ask-bear"
       viewTransition
       className="flex w-full cursor-pointer items-center gap-4 rounded-2xl p-4"
       style={{ background: "var(--color-bg-alt-base)" }}

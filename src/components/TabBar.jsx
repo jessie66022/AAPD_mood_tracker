@@ -16,13 +16,13 @@ const INDICATOR_ZONE_HEIGHT = 34;
 const TOAST_GAP = 16;
 
 const TABS_LEFT = [
-  { key: "home", label: "首頁", iconSvg: homeIconSvg, to: "/" },
-  { key: "ask-bear", label: "問熊熊", iconSvg: askBearIconSvg, to: "/ask-bear" },
+  { key: "home", label: "首頁", iconSvg: homeIconSvg, to: "/AAPD_mood_tracker" },
+  { key: "ask-bear", label: "問熊熊", iconSvg: askBearIconSvg, to: "/AAPD_mood_tracker/ask-bear" },
 ];
 
 const TABS_RIGHT = [
-  { key: "history", label: "回顧", iconSvg: historyIconSvg, to: "/review" },
-  { key: "settings", label: "設定", iconSvg: settingsIconSvg, to: "/settings" },
+  { key: "history", label: "回顧", iconSvg: historyIconSvg, to: "/AAPD_mood_tracker/review" },
+  { key: "settings", label: "設定", iconSvg: settingsIconSvg, to: "/AAPD_mood_tracker/settings" },
 ];
 
 function TabItem({ label, iconSvg, to, active }) {
