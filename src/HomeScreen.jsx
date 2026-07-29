@@ -2,7 +2,6 @@ import { motion, useReducedMotion } from "motion/react";
 import PhoneFrame from "./components/PhoneFrame";
 import StatusBar from "./components/StatusBar";
 import TabBar from "./components/TabBar";
-import NoteCard from "./components/NoteCard";
 import { useRecordSheet } from "./context/SheetContext";
 import avatar from "./assets/shared/avatar.svg";
 import moodRing from "./assets/home/mood-ring.svg";
@@ -19,7 +18,7 @@ export default function HomeScreen() {
       </div>
 
       {/* Main Container */}
-      <div className="absolute top-[67px] left-6 flex h-[695px] w-[354px] flex-col items-center justify-between pb-6">
+      <div className="absolute top-[67px] left-6 flex h-[695px] w-[354px] flex-col items-center justify-start pb-6">
         {/* Greeting */}
         <div className="flex w-full items-start justify-between">
           <div className="flex flex-col items-start gap-2 leading-[1.5]">
@@ -41,7 +40,7 @@ export default function HomeScreen() {
         </div>
 
         {/* Mood Tracker */}
-        <div className="flex flex-col items-center gap-9">
+        <div className="flex flex-1 flex-col items-center justify-center gap-9">
           {/* Header rises 36px and fades in on mount (Figma 193:6390). */}
           <motion.div
             className="flex h-[34px] w-full flex-col items-center"
@@ -95,8 +94,6 @@ export default function HomeScreen() {
             </div>
           </button>
         </div>
-
-        <NoteCard />
       </div>
 
       <TabBar active="home" />

@@ -96,5 +96,15 @@ export function answerFreeText(text) {
   if (/這個月|上個月|月份|每月/.test(text)) return monthlyMoodBreakdown();
   if (/標籤|影響|原因|為什麼/.test(text)) return topInfluenceTags();
   if (/記錄|天數|幾天|頻率/.test(text)) return monthlyRecordRate();
-  return "小熊還在學習中，你可以試著問我「這週心情怎麼樣？」或「這個月最常出現的情緒是？」之類的問題喔！🐻";
+  // Empathetic replies for free-form emotional chat (the mood → chat flow). Each reply follows
+  // the same principle as the openers: acknowledge, then ask just one guiding question so the
+  // conversation moves one step at a time. Negative feelings are matched before positive ones
+  // so「不好」等否定語不會誤觸開心分支。
+  if (/累|疲憊|好倦|沒力|沒精神/.test(text)) return "聽起來你真的辛苦了。今天是什麼讓你覺得特別累呢？";
+  if (/壓力|焦慮|緊張|好煩|不安|擔心/.test(text)) return "有壓力的時候，別急著責備自己。你覺得這份壓力最主要是從哪裡來的呢？";
+  if (/難過|傷心|想哭|低落|沮喪|失落/.test(text)) return "難過的感覺是可以被接住的。願意多說一點，是什麼讓你難過嗎？";
+  if (/生氣|憤怒|不爽|討厭|火大/.test(text)) return "生氣很正常，它在提醒你有些界線被踩到了。是什麼事讓你這麼生氣呢？";
+  if (/開心|快樂|高興|興奮|太好了|超讚/.test(text)) return "看到你這樣我也很開心！這份好心情是因為發生了什麼呢？";
+  if (/謝謝|感謝/.test(text)) return "不客氣，能陪著你我很開心。現在的你，還想再多聊一點嗎？";
+  return "我在這裡聽你說。可以多告訴我一點你現在的感受嗎？";
 }

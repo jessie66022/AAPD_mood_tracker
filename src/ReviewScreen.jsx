@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import PhoneFrame from "./components/PhoneFrame";
 import StatusBar from "./components/StatusBar";
 import TabBar from "./components/TabBar";
@@ -122,12 +122,50 @@ function CalendarCell({ cell, onSelect }) {
   );
 }
 
-function MonthTab({ onSelectDay }) {
-  const { todayMood } = useRecordSheet();
-  // Today's cell (7/19) shows the just-recorded mood if there is one, otherwise its static
-  // "empty" add-prompt. `undefined` means no record yet this session.
-  const resolveCell = (i, j, cell) =>
-    i === TODAY_CELL.row && j === TODAY_CELL.col && todayMood !== undefined ? todayMood : cell;
+// Map a THIS_WEEK_DAYS day to its calendar cell: a mood index when recorded with a spectrum
+// mood, else "muted" (neutral 普通 or a blank/未記錄 day).
+function dayToCell(day) {
+  if (!day.recorded || day.moodIndex == null) return "muted";
+  return day.moodIndex;
+}
+
+function MonthTab({ weekDays, onSelectDay }) {
+  const { todayMood, todaySummary } = useRecordSheet();
+  // The current-week row is driven by weekDays (the source of truth) so the calendar bears match
+  // the tapped-day summary and reflect deletes. Today's cell (7/19) shows the just-recorded mood
+  // if there is one, otherwise its static "empty" add-prompt (`undefined` = no record yet).
+  const resolveCell = (i, j, cell) => {
+    if (i === TODAY_CELL.row && j === TODAY_CELL.col && todayMood !== undefined) return todayMood;
+    if (i === CURRENT_WEEK_ROW) return dayToCell(weekDays[j]);
+    return cell;
+  };
+
+  // The summary object opened when a bear is tapped. Current-week days carry full detail
+  // (tags/note); other recorded days only have a mood, so build a mood-only summary from the cell.
+  const summaryFor = (i, j, resolved) => {
+    if (i === CURRENT_WEEK_ROW) return weekDays[j];
+    const moodIndex = typeof resolved === "number" ? resolved : null;
+    const isToday = i === TODAY_CELL.row && j === TODAY_CELL.col;
+    return {
+      date: `7月${CALENDAR_DATES[i][j].day}日`,
+      recorded: true,
+      moodIndex,
+      moodText: moodIndex == null ? "普通" : MOODS[moodIndex].label,
+      tags: [],
+      note: "",
+      // Today's cell carries the 和熊熊聊聊 recap from this session's completed chat, if any.
+      summary: isToday ? todaySummary : undefined,
+    };
+  };
+
+  // Tappable when there's something to peek: any current-week day, today once recorded, or any
+  // other recorded mood bear.
+  const canOpen = (i, j, cell, resolved) => {
+    if (cell === "hidden") return false;
+    if (i === CURRENT_WEEK_ROW) return true;
+    if (i === TODAY_CELL.row && j === TODAY_CELL.col) return todayMood !== undefined;
+    return typeof resolved === "number";
+  };
   return (
     <div className="flex w-full flex-col gap-6 pb-[120px]">
       <div className="flex w-full flex-col items-center gap-4">
@@ -151,13 +189,16 @@ function MonthTab({ onSelectDay }) {
               {CALENDAR_WEEKS.map((week, i) => (
                 <div key={i} className="flex w-full flex-col items-start gap-2">
                   <div className="flex w-full items-center justify-between">
-                    {week.map((cell, j) => (
-                      <CalendarCell
-                        key={j}
-                        cell={resolveCell(i, j, cell)}
-                        onSelect={i === CURRENT_WEEK_ROW && cell !== "hidden" ? () => onSelectDay(j) : undefined}
-                      />
-                    ))}
+                    {week.map((cell, j) => {
+                      const resolved = resolveCell(i, j, cell);
+                      return (
+                        <CalendarCell
+                          key={j}
+                          cell={resolved}
+                          onSelect={canOpen(i, j, cell, resolved) ? () => onSelectDay(summaryFor(i, j, resolved)) : undefined}
+                        />
+                      );
+                    })}
                   </div>
                   <div className="flex w-full items-center justify-between text-center text-xs leading-[1.5]">
                     {CALENDAR_DATES[i].map(({ day, muted, hidden }, j) => (
@@ -256,10 +297,12 @@ function WeekTab({ weekDays, onOpenActions }) {
   );
 }
 
-function DayDetailCard({ day }) {
+// The day's summary content (mood bear + label, tags, reflection note) — shared by the 日 tab's
+// card and the calendar's tap-to-peek summary sheet.
+function DaySummaryBody({ day }) {
   const moodColor = day.moodIndex != null ? MOODS[day.moodIndex].text : "var(--color-text-primary)";
   return (
-    <div className="flex w-full flex-col gap-4 rounded-2xl p-4" style={CARD_LG}>
+    <div className="flex w-full flex-col gap-4">
       <div className="flex items-center gap-3">
         <MoodBear moodIndex={day.moodIndex} variant="medium" className="size-14 shrink-0" />
         <p className="text-2xl leading-[1.5] font-semibold" style={{ color: moodColor }}>
@@ -283,7 +326,76 @@ function DayDetailCard({ day }) {
           </p>
         </div>
       )}
+      {day.summary && (
+        <div className="flex flex-col gap-1 border-t pt-4" style={{ borderColor: "var(--color-primary-muted)" }}>
+          <p className="text-sm leading-[1.5]" style={{ color: "var(--color-text-secondary)" }}>
+            和熊熊聊聊
+          </p>
+          <p className="text-base leading-[1.6]" style={{ color: "var(--color-text-primary)" }}>
+            {day.summary}
+          </p>
+        </div>
+      )}
     </div>
+  );
+}
+
+function DayDetailCard({ day }) {
+  return (
+    <div className="flex w-full flex-col gap-4 rounded-2xl p-4" style={CARD_LG}>
+      <DaySummaryBody day={day} />
+    </div>
+  );
+}
+
+const SUMMARY_SHEET_VARIANTS = {
+  initial: { y: "100%" },
+  animate: { y: 0, transition: { type: "spring", bounce: 0.16, duration: 0.55 } },
+  exit: { y: "100%", transition: { type: "spring", bounce: 0, duration: 0.4 } },
+};
+
+// Tap-a-bear day summary: a bottom sheet peeking that day's record without leaving the calendar.
+// Recorded days show the full summary; blank days show the empty prompt.
+function DaySummarySheet({ day, onClose }) {
+  return (
+    <>
+      <motion.div
+        className="absolute inset-0"
+        style={{ background: "rgba(0,0,0,0.4)" }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        onClick={onClose}
+      />
+      <motion.div
+        variants={SUMMARY_SHEET_VARIANTS}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        className="absolute bottom-0 left-0 flex w-full flex-col rounded-t-[24px] px-6 pt-2 pb-10"
+        style={{ background: "var(--color-bg-base)" }}
+      >
+        <div className="flex h-6 w-full shrink-0 items-center justify-center">
+          <div className="h-[5px] w-9 rounded-full" style={{ background: "#D1D5DB" }} />
+        </div>
+        <div className="flex w-full items-center justify-between pt-2 pb-4">
+          <p className="text-lg leading-[1.5] font-semibold" style={{ color: "var(--color-text-primary)" }}>
+            {day.date}
+          </p>
+          <button type="button" onClick={onClose} aria-label="關閉" className="size-6 shrink-0 cursor-pointer">
+            <svg viewBox="0 0 24 24" className="size-full" fill="none" aria-hidden="true">
+              <path d="M6 6L18 18M18 6L6 18" stroke="var(--color-text-secondary)" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+        {day.recorded ? (
+          <DaySummaryBody day={day} />
+        ) : (
+          <EmptyState title="這天還沒有紀錄" subtitle="點擊下方的「+」記錄這天的心情吧" />
+        )}
+      </motion.div>
+    </>
   );
 }
 
@@ -318,12 +430,9 @@ export default function ReviewScreen() {
   // The day whose "..." action sheet is open, or whose delete is pending confirmation.
   const [activeEntry, setActiveEntry] = useState(null);
   const [confirmingEntry, setConfirmingEntry] = useState(null);
+  // The day whose tap-to-peek summary sheet is open (from the month calendar).
+  const [summaryDay, setSummaryDay] = useState(null);
   const { show: showToast, hide: hideToast } = useToast();
-
-  const openDay = (index) => {
-    setDayIndex(index);
-    setActiveTab("day");
-  };
 
   const handleDeleteRequest = () => {
     setConfirmingEntry(activeEntry);
@@ -363,7 +472,7 @@ export default function ReviewScreen() {
           <SegmentedControl value={activeTab} onChange={setActiveTab} options={TABS} />
         </div>
 
-        {activeTab === "month" && <MonthTab onSelectDay={openDay} />}
+        {activeTab === "month" && <MonthTab weekDays={weekDays} onSelectDay={setSummaryDay} />}
         {activeTab === "week" && <WeekTab weekDays={weekDays} onOpenActions={setActiveEntry} />}
         {activeTab === "day" && <DayTab weekDays={weekDays} dayIndex={dayIndex} setDayIndex={setDayIndex} />}
       </div>
@@ -377,6 +486,9 @@ export default function ReviewScreen() {
       </AnimatePresence>
       <AnimatePresence>
         {confirmingEntry && <DeleteConfirmDialog onConfirm={handleDeleteConfirmed} onCancel={() => setConfirmingEntry(null)} />}
+      </AnimatePresence>
+      <AnimatePresence>
+        {summaryDay && <DaySummarySheet day={summaryDay} onClose={() => setSummaryDay(null)} />}
       </AnimatePresence>
     </PhoneFrame>
   );

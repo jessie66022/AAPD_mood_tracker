@@ -3,14 +3,14 @@ import { motion, AnimatePresence, useDragControls, useMotionValue, animate } fro
 import { useNavigate } from "react-router-dom";
 import StatusBar from "./StatusBar";
 import Button from "./Button";
+import ChatPanel from "./ChatPanel";
 import { useRecordSheet } from "../context/SheetContext";
 import { SLIDER_MOODS, sliderMoodToCalendarCell } from "../data/moods";
-import { TAG_CATEGORIES } from "../data/tags";
+import { moodOpening, chatScriptFor, composeChatSummary } from "../data/askBear";
 import backArrow from "../assets/mood/back-arrow.svg";
 import closeIcon from "../assets/mood/close.svg";
 import glowSvg from "../assets/mood/glow.svg?raw";
 import bearSvg from "../assets/mood/bear.svg?raw";
-import bearSmallSvg from "../assets/mood/bear-small.svg?raw";
 
 // Distance/velocity beyond which a downward drag commits to dismiss rather than springing back.
 const DISMISS_OFFSET = 120;
@@ -280,112 +280,58 @@ function MoodStep({ value, setValue, onNext, onClose }) {
       </div>
 
       <div className="absolute bottom-9 left-6 w-[354px]">
-        <Button onClick={onNext}>下一步</Button>
+        <Button onClick={onNext}>和熊熊聊聊</Button>
       </div>
     </>
   );
 }
 
-function TagsStep({ moodIndex, selectedTags, toggleTag, onBack, onClose, onFinish }) {
+// Chat step (replaces the old tags + done screens). Reached straight from the slider once a
+// mood is picked — the bear opens with a line acknowledging that mood, then it's a free chat.
+// Back returns to the slider; the X dismisses the sheet and lands on Home.
+function ChatStep({ moodIndex, onBack, onClose, onEnd }) {
   const mood = SLIDER_MOODS[moodIndex];
+  // Seed the conversation once so re-renders (e.g. typing) don't rebuild the opener.
+  const [seed] = useState(() => [{ id: 1, role: "bot", text: moodOpening(moodIndex) }]);
+  // The guided tree for this mood group — its root chips answer the opener's question.
+  const [script] = useState(() => chatScriptFor(moodIndex));
   return (
     <>
-      <div className="flex w-full shrink-0 items-center justify-center gap-[23px] px-6 py-4">
+      <div className="flex w-full shrink-0 items-center justify-between px-6 py-4">
         <button type="button" onClick={onBack} aria-label="上一步" className="size-6 shrink-0 cursor-pointer">
           <img src={backArrow} alt="" className="size-full" />
         </button>
-        <ProgressBar filledWidth="169px" />
+        <div className="flex items-center gap-2">
+          <div
+            className="h-8 w-[26px]"
+            style={{ "--fill-0": mood.fill, "--stroke-0": mood.stroke }}
+            dangerouslySetInnerHTML={{ __html: bearSvg }}
+          />
+          <p className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
+            和熊熊聊聊
+          </p>
+        </div>
         <button type="button" onClick={onClose} aria-label="關閉" className="size-6 shrink-0 cursor-pointer">
           <img src={closeIcon} alt="" className="size-full" />
         </button>
       </div>
 
-      {/* Scrollable content: header row above and 完成 button below stay fixed. min-h-0 lets this
-          flex child shrink past its content so overflow-y actually scrolls; pb-28 keeps the last
-          tags clear of the absolutely-positioned 完成 button. */}
-      <div className="scroll-hidden flex w-full min-h-0 flex-1 flex-col items-start gap-6 overflow-y-auto px-6 pb-28">
-        <div className="flex w-full flex-col items-center gap-4">
-          <div className="flex w-full items-center justify-center px-[140px] py-4">
-            <div className="flex flex-col items-center justify-center gap-4">
-              <div
-                className="h-20 w-[52px]"
-                style={{ "--fill-0": mood.fill, "--stroke-0": mood.stroke }}
-                dangerouslySetInnerHTML={{ __html: bearSmallSvg }}
-              />
-              <p className="text-center text-xl leading-[1.5] font-semibold whitespace-nowrap" style={{ color: mood.text }}>
-                {mood.label}
-              </p>
-            </div>
-          </div>
-          <div className="flex w-full flex-col items-center justify-center gap-2">
-            <p className="text-2xl leading-[1.5] font-semibold whitespace-nowrap" style={{ color: "var(--color-text-primary)" }}>
-              這個感覺和什麼有關係？
-            </p>
-            <p className="w-full text-center text-xs leading-[1.5]" style={{ color: "var(--color-text-secondary)" }}>
-              回想情緒與事件間的關聯，能夠幫助 Pace 更了解你
-            </p>
-          </div>
-        </div>
-
-        <div className="flex w-full flex-col items-start gap-5">
-          {TAG_CATEGORIES.map((category) => (
-            <div key={category.label} className="flex w-full flex-col items-start justify-center gap-2">
-              <p className="text-sm leading-[1.5]" style={{ color: "var(--color-text-secondary)" }}>
-                {category.label}
-              </p>
-              <div className="flex w-full flex-wrap items-center gap-2">
-                {category.tags.map((tag) => {
-                  const isSelected = selectedTags.has(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => toggleTag(tag)}
-                      aria-pressed={isSelected}
-                      className="flex shrink-0 cursor-pointer items-center justify-center rounded-full border px-4 py-[10px] text-base leading-[1.5]"
-                      style={
-                        isSelected
-                          ? { background: "var(--color-primary)", borderColor: "var(--color-primary)", color: "#fff" }
-                          : { background: "var(--color-bg-surface)", borderColor: "#D5CAC0", color: "var(--color-text-primary)" }
-                      }
-                    >
-                      {tag}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="absolute bottom-9 left-6 w-[354px]">
-        <Button onClick={onFinish}>完成</Button>
+      <div className="flex w-full min-h-0 flex-1 flex-col gap-4 px-6 pb-6">
+        <ChatPanel seedMessages={seed} script={script} onEnd={onEnd} />
       </div>
     </>
   );
 }
 
-// The completion state shown after 完成 (Figma 192:6249). Ambient mood-tinted glow blobs drift
-// behind the recorded mood — the bear + label — with a gentle affirmation. Back returns to the
-// tags step; the X closes the sheet.
-function DoneStep({ moodIndex, selectedTags, onBack, onClose, onDismiss }) {
+// Completion page (reuses the original success-screen visuals — ambient mood glow + the bear
+// rising/fading in — with new copy). Reached after the chat's 收尾 chip, so it reads as the
+// finish line for a full record: the mood, the chat recap (`summary`), and a done-checklist that
+// ties the mood log and the chat together. 完成 (or X) returns Home.
+function DoneStep({ moodIndex, summary, onDone }) {
   const mood = SLIDER_MOODS[moodIndex];
-  const tags = [...selectedTags];
-
-  // The success screen lingers for 3s, then auto-dismisses back to Home. Armed once on mount;
-  // a ref keeps the timer pointed at the latest handler without re-arming (and StrictMode's
-  // double-mount is covered by the cleanup). A manual back/X before then cancels it via unmount.
-  const onDismissRef = useRef(onDismiss);
-  onDismissRef.current = onDismiss;
-  useEffect(() => {
-    const timer = setTimeout(() => onDismissRef.current(), 3000);
-    return () => clearTimeout(timer);
-  }, []);
-
   return (
     <>
-      {/* Ambient glow (Figma Ellipse 20/21): two large blurred, mood-tinted blobs that drift on a
+      {/* Ambient glow (Figma Ellipse 20/21): two large blurred, mood-tinted blobs drifting on a
           slow 5s boomerang loop. pointer-events-none so they never intercept taps. */}
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
         <motion.div
@@ -402,24 +348,24 @@ function DoneStep({ moodIndex, selectedTags, onBack, onClose, onDismiss }) {
         />
       </div>
 
-      {/* Nav: back to tags, X closes. No progress bar — the flow is already complete. */}
-      <div className="relative z-10 flex w-full items-center justify-between px-6 py-4">
-        <button type="button" onClick={onBack} aria-label="上一步" className="size-6 shrink-0 cursor-pointer">
-          <img src={backArrow} alt="" className="size-full" />
-        </button>
-        <button type="button" onClick={onClose} aria-label="關閉" className="size-6 shrink-0 cursor-pointer">
+      {/* Nav: X returns Home. No back — the chat has already wrapped up. */}
+      <div className="relative z-10 flex w-full shrink-0 items-center justify-end px-6 py-4">
+        <button type="button" onClick={onDone} aria-label="關閉" className="size-6 shrink-0 cursor-pointer">
           <img src={closeIcon} alt="" className="size-full" />
         </button>
       </div>
 
-      <div className="absolute top-[200px] right-6 left-6 z-10 flex flex-col items-center">
+      <div className="scroll-hidden relative z-10 flex w-full min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto px-6">
+        <p className="text-sm leading-[1.5]" style={{ color: "var(--color-text-primary)", letterSpacing: "0.77px" }}>
+          7月4日 · 週六
+        </p>
         <p className="text-2xl leading-[1.5] font-semibold" style={{ color: "var(--color-text-primary)" }}>
-          此刻的感受
+          今天的紀錄完成了
         </p>
         {/* Recorded mood bear rises + fades in once on entrance (Figma Vector 192:6275); the y curve
             overshoots slightly (control point >1) for a soft settle. */}
         <motion.div
-          className="mt-8 h-[162px] w-[106px]"
+          className="mt-1 h-[132px] w-[86px]"
           style={{ "--fill-0": mood.fill, "--stroke-0": mood.stroke }}
           initial={{ opacity: 0, y: 23 }}
           animate={{ opacity: 1, y: 0 }}
@@ -429,32 +375,47 @@ function DoneStep({ moodIndex, selectedTags, onBack, onClose, onDismiss }) {
           }}
           dangerouslySetInnerHTML={{ __html: bearSvg }}
         />
-        <p className="mt-4 text-center text-xl leading-[1.5] font-semibold" style={{ color: mood.text }}>
+        <p className="text-xl leading-[1.5] font-semibold" style={{ color: mood.text }}>
           {mood.label}
         </p>
-        <p className="mt-2 text-center text-xs leading-[1.5]" style={{ color: "var(--color-text-secondary)" }}>
-          情緒沒有對錯，他是流動的
-        </p>
 
-        {/* The tags picked on the previous (TagsStep) screen, shown as a read-only summary. */}
-        {tags.length > 0 && (
+        {/* Chat recap — the day's 聊天總結. */}
+        {summary && (
           <motion.div
-            className="mt-6 flex flex-wrap items-center justify-center gap-2"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.35, ease: "easeOut" }}
+            className="mt-1 flex w-full flex-col gap-1 rounded-2xl p-4"
+            style={{ background: "var(--color-bg-surface)", boxShadow: "0px 2px 8px rgba(0,0,0,0.08)" }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.3, ease: "easeOut" }}
           >
-            {tags.map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full px-4 py-2 text-sm leading-[1.5]"
-                style={{ background: "var(--color-bg-alt-base)", color: "var(--color-text-primary)" }}
-              >
-                {tag}
-              </span>
-            ))}
+            <p className="text-sm leading-[1.5]" style={{ color: "var(--color-text-secondary)" }}>
+              今天的總結
+            </p>
+            <p className="text-base leading-[1.6]" style={{ color: "var(--color-text-primary)" }}>
+              {summary}
+            </p>
           </motion.div>
         )}
+
+        {/* Done-checklist — the "完整紀錄" feel: mood logged + talked it through. */}
+        <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+          {["已記錄心情", "和熊熊聊過"].map((label) => (
+            <span
+              key={label}
+              className="flex items-center gap-1 rounded-full px-4 py-2 text-sm leading-[1.5]"
+              style={{ background: "var(--color-bg-alt-base)", color: "var(--color-text-primary)" }}
+            >
+              <svg viewBox="0 0 16 16" className="size-4" fill="none" aria-hidden="true">
+                <path d="M3 8.5L6.5 12L13 5" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="relative z-10 w-full shrink-0 px-6 pt-3 pb-9">
+        <Button onClick={onDone}>完成</Button>
       </div>
     </>
   );
@@ -467,7 +428,7 @@ const CLOSE_TRANSITION = { type: "spring", bounce: 0, duration: 0.5 };
 
 export default function RecordMoodSheet({ onClose }) {
   const navigate = useNavigate();
-  const { setTodayMood } = useRecordSheet();
+  const { setTodayMood, setTodaySummary } = useRecordSheet();
   const dragControls = useDragControls();
   const sheetRef = useRef(null);
   // drag and the open/close animations must drive the same motion value — mixing this with
@@ -476,7 +437,8 @@ export default function RecordMoodSheet({ onClose }) {
   const [step, setStep] = useState("mood");
   // Index into SLIDER_MOODS (0–6). Defaults to the far-right 非常愉快, matching the prior slider.
   const [moodIndex, setMoodIndex] = useState(SLIDER_MOODS.length - 1);
-  const [selectedTags, setSelectedTags] = useState(new Set());
+  // The chat recap shown on the completion page (also persisted to context for the Review sheet).
+  const [chatSummary, setChatSummary] = useState("");
   // `drag` must be OFF during any programmatic (non-gesture) animation of `y` — Framer Motion's
   // own drag-constraint enforcement otherwise keeps fighting an external animate() call every
   // frame, and the two cancel out into a frozen mid-point instead of reaching the target.
@@ -496,30 +458,31 @@ export default function RecordMoodSheet({ onClose }) {
     animate(y, height, CLOSE_TRANSITION).then(onClose);
   };
 
-  // Success-screen auto-dismiss: close the sheet, then land on Home regardless of where the
-  // record flow was opened from (Home ring or the tab-bar FAB on another screen).
+  // Close the sheet, then land on Home regardless of where the record flow was opened from
+  // (Home ring or the tab-bar FAB on another screen). Used by the chat step's X.
   const dismissToHome = () => {
     if (isClosing) return;
     setIsClosing(true);
     const height = sheetRef.current?.offsetHeight ?? 874;
     animate(y, height, CLOSE_TRANSITION).then(() => {
       onClose();
-      navigate("/");
+      navigate("/AAPD_mood_tracker");
     });
   };
 
-  const toggleTag = (tag) => {
-    setSelectedTags((prev) => {
-      const next = new Set(prev);
-      if (next.has(tag)) next.delete(tag);
-      else next.add(tag);
-      return next;
-    });
-  };
-
-  const handleFinish = () => {
-    // Persist the recorded mood so today's (7/19) calendar bear fills in.
+  // Slider → chat: persist the recorded mood so today's calendar bear fills in, then hand off
+  // to the bear chat (the tags/done screens are gone — chat is the whole rest of the flow).
+  const startChat = () => {
     setTodayMood(sliderMoodToCalendarCell(moodIndex));
+    setStep("chat");
+  };
+
+  // Chat wrapped up (收尾): build the recap from what happened, show it on the completion page,
+  // and stash it in context so today's Review day-summary sheet shows the same thing.
+  const finishChat = (recap) => {
+    const summary = composeChatSummary(moodIndex, recap);
+    setChatSummary(summary);
+    setTodaySummary(summary);
     setStep("done");
   };
 
@@ -560,24 +523,16 @@ export default function RecordMoodSheet({ onClose }) {
         <StatusBar />
 
         {step === "mood" ? (
-          <MoodStep value={moodIndex} setValue={setMoodIndex} onNext={() => setStep("tags")} onClose={requestClose} />
-        ) : step === "tags" ? (
-          <TagsStep
+          <MoodStep value={moodIndex} setValue={setMoodIndex} onNext={startChat} onClose={requestClose} />
+        ) : step === "chat" ? (
+          <ChatStep
             moodIndex={moodIndex}
-            selectedTags={selectedTags}
-            toggleTag={toggleTag}
             onBack={() => setStep("mood")}
-            onClose={requestClose}
-            onFinish={handleFinish}
+            onClose={dismissToHome}
+            onEnd={finishChat}
           />
         ) : (
-          <DoneStep
-            moodIndex={moodIndex}
-            selectedTags={selectedTags}
-            onBack={() => setStep("tags")}
-            onClose={requestClose}
-            onDismiss={dismissToHome}
-          />
+          <DoneStep moodIndex={moodIndex} summary={chatSummary} onDone={dismissToHome} />
         )}
       </motion.div>
     </>
