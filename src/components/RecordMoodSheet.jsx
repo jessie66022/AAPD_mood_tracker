@@ -6,7 +6,7 @@ import Button from "./Button";
 import ChatPanel from "./ChatPanel";
 import { useRecordSheet } from "../context/SheetContext";
 import { SLIDER_MOODS, sliderMoodToCalendarCell } from "../data/moods";
-import { moodOpening, chatScriptFor, composeChatSummary } from "../data/askBear";
+import { moodOpening, chatScriptFor, composeChatSummary, composeChatTags } from "../data/askBear";
 import backArrow from "../assets/mood/back-arrow.svg";
 import closeIcon from "../assets/mood/close.svg";
 import glowSvg from "../assets/mood/glow.svg?raw";
@@ -328,10 +328,11 @@ function ChatStep({ moodIndex, onBack, onClose, onEnd }) {
 }
 
 // Completion page (reuses the original success-screen visuals — ambient mood glow + the bear
-// rising/fading in — with new copy). Reached after the chat's 收尾 chip, so it reads as the
-// finish line for a full record: the mood, the chat recap (`summary`), and a done-checklist that
-// ties the mood log and the chat together. 完成 (or X) returns Home.
-function DoneStep({ moodIndex, summary, onDone }) {
+// rising/fading in — with new copy). Reads as the finish line for a record: the mood, the chat
+// recap (`summary`), and the `tags` extracted from the record — an 情緒 tag from the mood plus any
+// 事件 tags from the chat, so the page reflects what the user actually shared, not just "done".
+// 完成 (or X) returns Home.
+function DoneStep({ moodIndex, summary, tags, onDone }) {
   const mood = SLIDER_MOODS[moodIndex];
   return (
     <>
@@ -359,7 +360,7 @@ function DoneStep({ moodIndex, summary, onDone }) {
         </button>
       </div>
 
-      <div className="scroll-hidden relative z-10 flex w-full min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto px-6">
+      <div className="scroll-hidden relative z-10 flex w-full min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-6">
         <p className="text-sm leading-[1.5]" style={{ color: "var(--color-text-primary)", letterSpacing: "0.77px" }}>
           7月4日 · 週六
         </p>
@@ -369,7 +370,7 @@ function DoneStep({ moodIndex, summary, onDone }) {
         {/* Recorded mood bear rises + fades in once on entrance (Figma Vector 192:6275); the y curve
             overshoots slightly (control point >1) for a soft settle. */}
         <motion.div
-          className="mt-1 h-[132px] w-[86px]"
+          className="mt-1 h-[112px] w-[73px]"
           style={{ "--fill-0": mood.fill, "--stroke-0": mood.stroke }}
           initial={{ opacity: 0, y: 23 }}
           animate={{ opacity: 1, y: 0 }}
@@ -401,21 +402,45 @@ function DoneStep({ moodIndex, summary, onDone }) {
           </motion.div>
         )}
 
-        {/* Done-checklist — mood always logged; 和熊熊聊過 only when a chat actually happened
-            (the 就這樣 quick path has no summary, so it shows just 已記錄心情). */}
-        <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
-          {(summary ? ["已記錄心情", "和熊熊聊過"] : ["已記錄心情"]).map((label) => (
-            <span
-              key={label}
-              className="flex items-center gap-1 rounded-full px-4 py-2 text-sm leading-[1.5]"
-              style={{ background: "var(--color-bg-alt-base)", color: "var(--color-text-primary)" }}
-            >
-              <svg viewBox="0 0 16 16" className="size-4" fill="none" aria-hidden="true">
-                <path d="M3 8.5L6.5 12L13 5" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              {label}
-            </span>
-          ))}
+        {/* Tags extracted from the record: an 情緒 tag (mood-tinted) always, plus 事件 tags from the
+            chat when there was one. Grouped and labelled so the two kinds read distinctly. */}
+        <div className="mt-2 flex w-full flex-col items-center gap-3">
+          {tags?.emotion?.length > 0 && (
+            <div className="flex w-full flex-col items-center gap-1.5">
+              <p className="text-xs leading-[1.5]" style={{ color: "var(--color-text-secondary)", letterSpacing: "0.77px" }}>
+                情緒
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {tags.emotion.map((label) => (
+                  <span
+                    key={label}
+                    className="rounded-full px-4 py-[6px] text-sm leading-[1.5] font-semibold"
+                    style={{ background: mood.fill, color: mood.text }}
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {tags?.event?.length > 0 && (
+            <div className="flex w-full flex-col items-center gap-1.5">
+              <p className="text-xs leading-[1.5]" style={{ color: "var(--color-text-secondary)", letterSpacing: "0.77px" }}>
+                事件
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {tags.event.map((label) => (
+                  <span
+                    key={label}
+                    className="rounded-full border px-4 py-[6px] text-sm leading-[1.5]"
+                    style={{ background: "var(--color-bg-surface)", borderColor: "#D5CAC0", color: "var(--color-text-primary)" }}
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -433,7 +458,7 @@ const CLOSE_TRANSITION = { type: "spring", bounce: 0, duration: 0.5 };
 
 export default function RecordMoodSheet({ onClose }) {
   const navigate = useNavigate();
-  const { setTodayMood, setTodaySummary } = useRecordSheet();
+  const { setTodayMood, setTodaySummary, setTodayTags } = useRecordSheet();
   const dragControls = useDragControls();
   const sheetRef = useRef(null);
   // drag and the open/close animations must drive the same motion value — mixing this with
@@ -444,6 +469,8 @@ export default function RecordMoodSheet({ onClose }) {
   const [moodIndex, setMoodIndex] = useState(SLIDER_MOODS.length - 1);
   // The chat recap shown on the completion page (also persisted to context for the Review sheet).
   const [chatSummary, setChatSummary] = useState("");
+  // Tags extracted for the completion page: { emotion: [...], event: [...] }.
+  const [chatTags, setChatTags] = useState({ emotion: [], event: [] });
   // `drag` must be OFF during any programmatic (non-gesture) animation of `y` — Framer Motion's
   // own drag-constraint enforcement otherwise keeps fighting an external animate() call every
   // frame, and the two cancel out into a frozen mid-point instead of reaching the target.
@@ -482,11 +509,14 @@ export default function RecordMoodSheet({ onClose }) {
     setStep("chat");
   };
 
-  // Slider → done (就這樣): the quick path. Log the mood and skip the chat entirely, so there's
-  // no chat summary — the完成 page shows just the mood and a "已記錄心情" check.
+  // Slider → done (就這樣): the quick path. Log the mood and skip the chat, so there's no chat
+  // summary and only an 情緒 tag (from the mood) — no 事件 tags without a conversation.
   const justLog = () => {
     setTodayMood(sliderMoodToCalendarCell(moodIndex));
     setChatSummary("");
+    const tags = composeChatTags(moodIndex, {});
+    setChatTags(tags);
+    setTodayTags(tags);
     setStep("done");
   };
 
@@ -496,6 +526,9 @@ export default function RecordMoodSheet({ onClose }) {
     const summary = composeChatSummary(moodIndex, recap);
     setChatSummary(summary);
     setTodaySummary(summary);
+    const tags = composeChatTags(moodIndex, recap);
+    setChatTags(tags);
+    setTodayTags(tags);
     setStep("done");
   };
 
@@ -545,7 +578,7 @@ export default function RecordMoodSheet({ onClose }) {
             onEnd={finishChat}
           />
         ) : (
-          <DoneStep moodIndex={moodIndex} summary={chatSummary} onDone={dismissToHome} />
+          <DoneStep moodIndex={moodIndex} summary={chatSummary} tags={chatTags} onDone={dismissToHome} />
         )}
       </motion.div>
     </>

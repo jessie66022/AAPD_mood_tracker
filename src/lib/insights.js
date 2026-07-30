@@ -91,7 +91,24 @@ export function monthlyRecordRate() {
   return `這個月目前記錄了 ${recorded} / ${cells.length} 天（${percent}%）。持續記錄能幫助你更了解自己的情緒變化。`;
 }
 
+// This week's emotional range — the highest and lowest recorded days — to help the user notice
+// what lifted or weighed on them. Falls back gracefully when there's too little to compare.
+export function weekHighLow() {
+  const rated = THIS_WEEK_DAYS.filter((day) => day.recorded && day.moodIndex != null);
+  if (rated.length === 0) {
+    return "這週還沒有可以比較的心情紀錄，先記錄幾天，我們就能看出起伏囉！";
+  }
+  const sorted = [...rated].sort((a, b) => MOODS[b.moodIndex].value - MOODS[a.moodIndex].value);
+  const best = sorted[0];
+  const low = sorted[sorted.length - 1];
+  if (best === low) {
+    return `這週目前記錄了 ${best.date}「${best.moodText}」。再多記錄幾天，我就能陪你看看心情的高低起伏。`;
+  }
+  return `這週心情最好的是 ${best.date}「${best.moodText}」，比較低落的是 ${low.date}「${low.moodText}」。回想那兩天發生了什麼，也許能看見一些影響你的線索。`;
+}
+
 export function answerFreeText(text) {
+  if (/起伏|高低|最好|最差|最低|最高|哪天/.test(text)) return weekHighLow();
   if (/這週|本週|禮拜/.test(text)) return weeklyMoodSummary();
   if (/這個月|上個月|月份|每月/.test(text)) return monthlyMoodBreakdown();
   if (/標籤|影響|原因|為什麼/.test(text)) return topInfluenceTags();

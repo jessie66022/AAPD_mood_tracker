@@ -130,7 +130,7 @@ function dayToCell(day) {
 }
 
 function MonthTab({ weekDays, onSelectDay }) {
-  const { todayMood, todaySummary } = useRecordSheet();
+  const { todayMood, todaySummary, todayTags } = useRecordSheet();
   // The current-week row is driven by weekDays (the source of truth) so the calendar bears match
   // the tapped-day summary and reflect deletes. Today's cell (7/19) shows the just-recorded mood
   // if there is one, otherwise its static "empty" add-prompt (`undefined` = no record yet).
@@ -151,9 +151,9 @@ function MonthTab({ weekDays, onSelectDay }) {
       recorded: true,
       moodIndex,
       moodText: moodIndex == null ? "普通" : MOODS[moodIndex].label,
-      tags: [],
+      // Today's cell carries the 情緒 + 事件 tags and 和熊熊聊聊 recap from this session's record.
+      tags: isToday && todayTags ? [...todayTags.emotion, ...todayTags.event] : [],
       note: "",
-      // Today's cell carries the 和熊熊聊聊 recap from this session's completed chat, if any.
       summary: isToday ? todaySummary : undefined,
     };
   };

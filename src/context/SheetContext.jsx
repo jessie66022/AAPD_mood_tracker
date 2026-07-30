@@ -12,6 +12,9 @@ export function SheetProvider({ children }) {
   // on the completion page and in the Review calendar's day-summary sheet for today (7/19).
   // `undefined` until a chat is finished this session.
   const [todaySummary, setTodaySummary] = useState(undefined);
+  // Tags for today's record, extracted on completion: { emotion: [...], event: [...] }. Shown on
+  // the completion page and the Review day-summary sheet. `undefined` until a record is finished.
+  const [todayTags, setTodayTags] = useState(undefined);
   return (
     <SheetContext.Provider
       value={{
@@ -22,6 +25,8 @@ export function SheetProvider({ children }) {
         setTodayMood,
         todaySummary,
         setTodaySummary,
+        todayTags,
+        setTodayTags,
       }}
     >
       {children}

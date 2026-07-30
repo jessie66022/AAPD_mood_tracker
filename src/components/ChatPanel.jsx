@@ -95,7 +95,11 @@ const END_DELAY = 2000;
 //   a practice, invite more talk, or end the chat. When present, the practice chip is appended to
 //   every chip row so a小練習 is always reachable.
 // - `onEnd`: called after a 收尾 (end) chip's closing line, to leave the chat (e.g. return Home).
-export default function ChatPanel({ seedMessages = [], renderEmpty, script = null, onEnd }) {
+// - `suggestions`: persistent quick-reply chips for the free-chat (問熊熊) mode — `{ key, label,
+//   resolve }`, where `resolve()` returns the bear's answer. Unlike the guided `script` chips they
+//   don't change, so the user always has jumping-off points to keep exploring their records. Shown
+//   once the conversation has started (the empty state renders its own greeting + chips).
+export default function ChatPanel({ seedMessages = [], renderEmpty, script = null, onEnd, suggestions = [] }) {
   const [messages, setMessages] = useState(seedMessages);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
@@ -150,12 +154,22 @@ export default function ChatPanel({ seedMessages = [], renderEmpty, script = nul
       const nextStep = exercise.step + 1;
       const done = nextStep >= p.steps;
       setExercise(done ? null : { id: exercise.id, step: nextStep });
+      // On finish, swap in the practice's own 收尾 chips (which answer the done question and let
+      // the user leave) instead of falling back to the pre-practice tree chips.
+      if (done && p.doneChips) setChips(p.doneChips);
       push(text, done ? p.done : p.prompts[exercise.step]);
     } else {
       freeTextRef.current = true;
       push(text, answerFreeText(text));
     }
     setInput("");
+  };
+
+  // A persistent 問熊熊 suggestion: post it like a user message, with its resolved insight answer.
+  const handleSuggestion = (s) => {
+    if (pending || ending) return;
+    freeTextRef.current = true;
+    push(s.label, s.resolve());
   };
 
   const handleChip = (chip) => {
@@ -189,11 +203,23 @@ export default function ChatPanel({ seedMessages = [], renderEmpty, script = nul
     }
   };
 
-  // Append the universal practice chip unless this row already offers one.
+  // Append the universal practice chip unless this row already offers one — or the row is purely
+  // closing (收尾) options, e.g. the just-finished practice's exit chips, where offering another
+  // practice would only get in the way of leaving.
   const displayChips =
-    script && chips.length > 0 && !chips.some((c) => c.kind === "practice") ? [...chips, PRACTICE_CHIP] : chips;
+    script && chips.length > 0 && !chips.some((c) => c.kind === "practice") && !chips.every((c) => c.end)
+      ? [...chips, PRACTICE_CHIP]
+      : chips;
   const lastMessage = messages[messages.length - 1];
-  const showChips = displayChips.length > 0 && !exercise && !pending && !ending && lastMessage?.role === "bot";
+  // The chip row is shared: the guided `script` tree drives it in the mood chat, while `suggestions`
+  // drive it (persistently) in the free-chat 問熊熊 mode once the conversation has started. Either
+  // way it only shows when the bear has just spoken and nothing is mid-flight.
+  const chipButtons = script
+    ? displayChips.map((chip) => ({ key: chip.label, label: chip.label, onClick: () => handleChip(chip) }))
+    : messages.length > 0
+      ? suggestions.map((s) => ({ key: s.key, label: s.label, onClick: () => handleSuggestion(s) }))
+      : [];
+  const showChips = chipButtons.length > 0 && !exercise && !pending && !ending && lastMessage?.role === "bot";
 
   return (
     <>
@@ -222,11 +248,11 @@ export default function ChatPanel({ seedMessages = [], renderEmpty, script = nul
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
           >
-            {displayChips.map((chip) => (
+            {chipButtons.map((chip) => (
               <button
-                key={chip.label}
+                key={chip.key}
                 type="button"
-                onClick={() => handleChip(chip)}
+                onClick={chip.onClick}
                 className="shrink-0 cursor-pointer rounded-full border px-4 py-2 text-sm leading-[1.5] whitespace-nowrap"
                 style={{ background: "var(--color-bg-surface)", borderColor: "#D5CAC0", color: "var(--color-text-primary)" }}
               >

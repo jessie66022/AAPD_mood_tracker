@@ -23,6 +23,7 @@ export function moodOpening(moodIndex) {
 
 export const SUGGESTIONS = [
   { key: "week", label: "我這週心情怎麼樣？" },
+  { key: "highlow", label: "這週的高低起伏？" },
   { key: "month", label: "這個月最常出現的情緒是？" },
   { key: "tags", label: "什麼最常影響我的心情？" },
   { key: "rate", label: "這個月我記錄了幾天？" },
@@ -42,6 +43,12 @@ export const PRACTICES = {
       "嗯，還有最後一個。第 3 樣是什麼？",
     ],
     done: "太棒了，你完成了 🎉 慢慢把注意力帶回身體。有沒有覺得跟此刻、跟這個空間更靠近了一點呢？",
+    // Shown after the practice wraps up — these answer the done question, and both are 收尾籤
+    // (`end`) so finishing the practice lets the user leave straight away.
+    doneChips: [
+      { label: "嗯，好一點了", userText: "嗯，好一點了", end: "真好，能陪你一起著地我也很開心。今天就到這裡吧，想我的時候隨時回來 🐻" },
+      { label: "還是有點緊繃", userText: "還是有點緊繃", end: "沒關係，情緒需要一點時間慢慢沉澱。你已經很努力了，先好好休息，我都在 🐻" },
+    ],
   },
 };
 
@@ -239,4 +246,15 @@ export function composeChatSummary(moodIndex, { topics = [], didPractice = false
   else if (freeTexted) parts.push("和熊熊說了一些心裡的話。");
   if (didPractice) parts.push("也一起做了著地小練習，讓自己回到當下。");
   return parts.join("");
+}
+
+// Tags for the completion page, built from what the user actually answered: an 情緒 tag from the
+// recorded mood, plus 事件 tags from the topics they tapped through the chat tree. The quick
+// (就這樣) path has no chat, so it yields just the emotion tag. Scripted stand-in for an LLM.
+export function composeChatTags(moodIndex, { topics = [] } = {}) {
+  const mood = SLIDER_MOODS[moodIndex]?.label;
+  return {
+    emotion: mood ? [mood] : [],
+    event: [...new Set(topics)],
+  };
 }
