@@ -208,7 +208,7 @@ function DateChip() {
   );
 }
 
-function MoodStep({ value, setValue, onNext, onClose }) {
+function MoodStep({ value, setValue, onJustLog, onChat, onClose }) {
   const mood = SLIDER_MOODS[value];
   return (
     <>
@@ -225,8 +225,8 @@ function MoodStep({ value, setValue, onNext, onClose }) {
         <DateChip />
       </div>
 
-      <div className="absolute top-[240.5px] left-6 flex w-[354px] flex-col items-center gap-12">
-        <div className="relative flex w-full flex-col items-center gap-12">
+      <div className="scroll-hidden flex w-full min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6">
+        <div className="relative flex w-full flex-col items-center gap-3">
           <div
             className="pointer-events-none absolute top-1/2 left-1/2 size-[172px] -translate-x-1/2 -translate-y-1/2"
             style={{ "--fill-0": mood.fill }}
@@ -241,7 +241,7 @@ function MoodStep({ value, setValue, onNext, onClose }) {
             </p>
           </div>
           <div
-            className="relative h-[162px] w-[106px]"
+            className="relative h-[150px] w-[98px]"
             style={{ "--fill-0": mood.fill, "--stroke-0": mood.stroke }}
             dangerouslySetInnerHTML={{ __html: bearSvg }}
           />
@@ -257,7 +257,7 @@ function MoodStep({ value, setValue, onNext, onClose }) {
           </motion.p>
         </div>
 
-        <div className="flex w-full flex-col items-start gap-3">
+        <div className="flex w-full flex-col items-start gap-2">
           <input
             type="range"
             min={0}
@@ -279,8 +279,12 @@ function MoodStep({ value, setValue, onNext, onClose }) {
         </div>
       </div>
 
-      <div className="absolute bottom-9 left-6 w-[354px]">
-        <Button onClick={onNext}>和熊熊聊聊</Button>
+      {/* Two ways out of the slider: 就這樣 logs the mood and jumps straight to the完成 page
+          (the quick path, so it's the primary CTA); 和小熊聊聊 is the lower-emphasis option that
+          opens the bear chat. */}
+      <div className="flex w-full shrink-0 flex-col gap-3 px-6 pt-3 pb-9">
+        <Button onClick={onJustLog}>就這樣</Button>
+        <Button variant="secondary" onClick={onChat}>和小熊聊聊</Button>
       </div>
     </>
   );
@@ -397,9 +401,10 @@ function DoneStep({ moodIndex, summary, onDone }) {
           </motion.div>
         )}
 
-        {/* Done-checklist — the "完整紀錄" feel: mood logged + talked it through. */}
+        {/* Done-checklist — mood always logged; 和熊熊聊過 only when a chat actually happened
+            (the 就這樣 quick path has no summary, so it shows just 已記錄心情). */}
         <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
-          {["已記錄心情", "和熊熊聊過"].map((label) => (
+          {(summary ? ["已記錄心情", "和熊熊聊過"] : ["已記錄心情"]).map((label) => (
             <span
               key={label}
               className="flex items-center gap-1 rounded-full px-4 py-2 text-sm leading-[1.5]"
@@ -471,10 +476,18 @@ export default function RecordMoodSheet({ onClose }) {
   };
 
   // Slider → chat: persist the recorded mood so today's calendar bear fills in, then hand off
-  // to the bear chat (the tags/done screens are gone — chat is the whole rest of the flow).
+  // to the bear chat.
   const startChat = () => {
     setTodayMood(sliderMoodToCalendarCell(moodIndex));
     setStep("chat");
+  };
+
+  // Slider → done (就這樣): the quick path. Log the mood and skip the chat entirely, so there's
+  // no chat summary — the完成 page shows just the mood and a "已記錄心情" check.
+  const justLog = () => {
+    setTodayMood(sliderMoodToCalendarCell(moodIndex));
+    setChatSummary("");
+    setStep("done");
   };
 
   // Chat wrapped up (收尾): build the recap from what happened, show it on the completion page,
@@ -523,7 +536,7 @@ export default function RecordMoodSheet({ onClose }) {
         <StatusBar />
 
         {step === "mood" ? (
-          <MoodStep value={moodIndex} setValue={setMoodIndex} onNext={startChat} onClose={requestClose} />
+          <MoodStep value={moodIndex} setValue={setMoodIndex} onJustLog={justLog} onChat={startChat} onClose={requestClose} />
         ) : step === "chat" ? (
           <ChatStep
             moodIndex={moodIndex}
