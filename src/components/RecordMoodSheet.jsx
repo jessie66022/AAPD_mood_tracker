@@ -16,19 +16,10 @@ import bearSvg from "../assets/mood/bear.svg?raw";
 const DISMISS_OFFSET = 120;
 const DISMISS_VELOCITY = 500;
 
-function ProgressBar({ filledWidth }) {
-  return (
-    <div className="relative h-3 w-[270px] shrink-0">
-      <div className="absolute inset-0 rounded-full" style={{ background: "var(--color-primary-muted)" }} />
-      <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: filledWidth, background: "#60995C" }} />
-    </div>
-  );
-}
-
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const WEEKDAY_HEADER = ["一", "二", "三", "四", "五", "六", "日"]; // calendar is Monday-first
 const MONTH_NAMES = ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"];
-const TODAY_ISO = "2026-07-04";
+const TODAY_ISO = "2026-07-31";
 
 const pad = (n) => String(n).padStart(2, "0");
 
@@ -179,7 +170,7 @@ function DateChip() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 rounded-full border px-4 py-4 whitespace-nowrap cursor-pointer"
+        className="flex items-center gap-2 rounded-full border px-4 py-2 whitespace-nowrap cursor-pointer"
         style={{ background: "var(--color-bg-surface)", borderColor: "#D5CAC0" }}
       >
         <span className="text-base font-semibold" style={{ color: "var(--color-primary)" }}>
@@ -212,52 +203,53 @@ function MoodStep({ value, setValue, onJustLog, onChat, onClose }) {
   const mood = SLIDER_MOODS[value];
   return (
     <>
-      <div className="flex w-full items-center justify-center gap-[23px] px-6 py-4">
+      <div className="flex w-full items-center justify-between px-6 py-4">
         <button type="button" onClick={onClose} aria-label="上一步" className="size-6 shrink-0 cursor-pointer">
           <img src={backArrow} alt="" className="size-full" />
         </button>
-        <ProgressBar filledWidth="112px" />
+        <DateChip />
         <button type="button" onClick={onClose} aria-label="關閉" className="size-6 shrink-0 cursor-pointer">
           <img src={closeIcon} alt="" className="size-full" />
         </button>
       </div>
-      <div className="flex w-full flex-col items-center">
-        <DateChip />
+
+      {/* Prompt copy pinned near the top — 48px below the date picker (16px from the header's own
+          bottom padding + this 32px). The bear, label and slider stay centered in the space below. */}
+      <div className="mt-8 flex w-full flex-col items-center gap-2 px-6">
+        <p className="w-[216px] text-center text-2xl leading-[1.5] font-semibold" style={{ color: "var(--color-text-primary)" }}>
+          現在的你感覺如何？
+        </p>
+        <p className="text-center text-sm leading-[1.5]" style={{ color: "var(--color-text-secondary)" }}>
+          請調整下方滑桿設定心情感受
+        </p>
       </div>
 
-      <div className="scroll-hidden flex w-full min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto px-6">
-        <div className="relative flex w-full flex-col items-center gap-3">
-          <div
-            className="pointer-events-none absolute top-1/2 left-1/2 size-[172px] -translate-x-1/2 -translate-y-1/2"
-            style={{ "--fill-0": mood.fill }}
-            dangerouslySetInnerHTML={{ __html: glowSvg }}
-          />
-          <div className="relative flex w-full flex-col items-center gap-2">
-            <p className="w-[216px] text-center text-2xl leading-[1.5] font-semibold" style={{ color: "var(--color-text-primary)" }}>
-              現在的你感覺如何？
-            </p>
-            <p className="text-center text-sm leading-[1.5]" style={{ color: "var(--color-text-secondary)" }}>
-              請調整下方滑桿設定心情感受
-            </p>
-          </div>
-          <div
-            className="relative h-[150px] w-[98px]"
-            style={{ "--fill-0": mood.fill, "--stroke-0": mood.stroke }}
-            dangerouslySetInnerHTML={{ __html: bearSvg }}
-          />
-          <motion.p
-            key={mood.label}
-            initial={{ scale: 0.8, y: 6, opacity: 0 }}
-            animate={{ scale: 1, y: 0, opacity: 1 }}
-            transition={{ type: "spring", bounce: 0.55, duration: 0.5 }}
-            className="relative text-center text-xl leading-[1.5] font-semibold"
-            style={{ color: mood.stroke }}
-          >
-            {mood.label}
-          </motion.p>
-        </div>
+      {/* Bear + label, centered in the space between the prompt copy and the slider so it sits an
+          equal distance from both. */}
+      <div className="relative flex w-full min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto px-6">
+        <div
+          className="pointer-events-none absolute top-1/2 left-1/2 size-[172px] -translate-x-1/2 -translate-y-1/2"
+          style={{ "--fill-0": mood.fill }}
+          dangerouslySetInnerHTML={{ __html: glowSvg }}
+        />
+        <div
+          className="relative h-[150px] w-[98px]"
+          style={{ "--fill-0": mood.fill, "--stroke-0": mood.stroke }}
+          dangerouslySetInnerHTML={{ __html: bearSvg }}
+        />
+        <motion.p
+          key={mood.label}
+          initial={{ scale: 0.8, y: 6, opacity: 0 }}
+          animate={{ scale: 1, y: 0, opacity: 1 }}
+          transition={{ type: "spring", bounce: 0.55, duration: 0.5 }}
+          className="relative text-center text-xl leading-[1.5] font-semibold"
+          style={{ color: mood.stroke }}
+        >
+          {mood.label}
+        </motion.p>
+      </div>
 
-        <div className="flex w-full flex-col items-start gap-2">
+      <div className="flex w-full shrink-0 flex-col items-start gap-2 px-6">
           <input
             type="range"
             min={0}
@@ -272,13 +264,11 @@ function MoodStep({ value, setValue, onJustLog, onChat, onClose }) {
               [&::-webkit-slider-thumb]:mt-[-6px] [&::-webkit-slider-thumb]:size-12 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_4px_10px_rgba(0,0,0,0.08)]
               [&::-moz-range-thumb]:size-12 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-[0_4px_10px_rgba(0,0,0,0.08)]"
           />
-          <div className="flex w-full items-center justify-between text-sm leading-[1.5] whitespace-nowrap" style={{ color: "var(--color-text-secondary)", letterSpacing: "0.77px" }}>
-            <p>{SLIDER_MOODS[0].label}</p>
-            <p>{SLIDER_MOODS[SLIDER_MOODS.length - 1].label}</p>
-          </div>
+        <div className="flex w-full items-center justify-between text-sm leading-[1.5] whitespace-nowrap" style={{ color: "var(--color-text-secondary)", letterSpacing: "0.77px" }}>
+          <p>{SLIDER_MOODS[0].label}</p>
+          <p>{SLIDER_MOODS[SLIDER_MOODS.length - 1].label}</p>
         </div>
       </div>
-
       {/* Two ways out of the slider: 就這樣 logs the mood and jumps straight to the完成 page
           (the quick path, so it's the primary CTA); 和小熊聊聊 is the lower-emphasis option that
           opens the bear chat. */}
@@ -332,7 +322,7 @@ function ChatStep({ moodIndex, onBack, onClose, onEnd }) {
 // recap (`summary`), and the `tags` extracted from the record — an 情緒 tag from the mood plus any
 // 事件 tags from the chat, so the page reflects what the user actually shared, not just "done".
 // 完成 (or X) returns Home.
-function DoneStep({ moodIndex, summary, tags, onDone }) {
+function DoneStep({ moodIndex, tags, onDone }) {
   const mood = SLIDER_MOODS[moodIndex];
   return (
     <>
@@ -362,7 +352,7 @@ function DoneStep({ moodIndex, summary, tags, onDone }) {
 
       <div className="scroll-hidden relative z-10 flex w-full min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-y-auto px-6">
         <p className="text-sm leading-[1.5]" style={{ color: "var(--color-text-primary)", letterSpacing: "0.77px" }}>
-          7月4日 · 週六
+          7月31日 · 週五
         </p>
         <p className="text-2xl leading-[1.5] font-semibold" style={{ color: "var(--color-text-primary)" }}>
           今天的紀錄完成了
@@ -370,7 +360,7 @@ function DoneStep({ moodIndex, summary, tags, onDone }) {
         {/* Recorded mood bear rises + fades in once on entrance (Figma Vector 192:6275); the y curve
             overshoots slightly (control point >1) for a soft settle. */}
         <motion.div
-          className="mt-1 h-[112px] w-[73px]"
+          className="mt-8 h-[112px] w-[73px]"
           style={{ "--fill-0": mood.fill, "--stroke-0": mood.stroke }}
           initial={{ opacity: 0, y: 23 }}
           animate={{ opacity: 1, y: 0 }}
@@ -384,49 +374,13 @@ function DoneStep({ moodIndex, summary, tags, onDone }) {
           {mood.label}
         </p>
 
-        {/* Chat recap — the day's 聊天總結. */}
-        {summary && (
-          <motion.div
-            className="mt-1 flex w-full flex-col gap-1 rounded-2xl p-4"
-            style={{ background: "var(--color-bg-surface)", boxShadow: "0px 2px 8px rgba(0,0,0,0.08)" }}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.3, ease: "easeOut" }}
-          >
-            <p className="text-sm leading-[1.5]" style={{ color: "var(--color-text-secondary)" }}>
-              今天的總結
-            </p>
-            <p className="text-base leading-[1.6]" style={{ color: "var(--color-text-primary)" }}>
-              {summary}
-            </p>
-          </motion.div>
-        )}
-
-        {/* Tags extracted from the record: an 情緒 tag (mood-tinted) always, plus 事件 tags from the
-            chat when there was one. Grouped and labelled so the two kinds read distinctly. */}
+        {/* 因為 tags from the chat (when there was one) — the reasons behind the mood. The mood
+            itself is already shown above as the bear + label, so it's not repeated as a tag. */}
         <div className="mt-2 flex w-full flex-col items-center gap-3">
-          {tags?.emotion?.length > 0 && (
-            <div className="flex w-full flex-col items-center gap-1.5">
-              <p className="text-xs leading-[1.5]" style={{ color: "var(--color-text-secondary)", letterSpacing: "0.77px" }}>
-                情緒
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                {tags.emotion.map((label) => (
-                  <span
-                    key={label}
-                    className="rounded-full px-4 py-[6px] text-sm leading-[1.5] font-semibold"
-                    style={{ background: mood.fill, color: mood.text }}
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
           {tags?.event?.length > 0 && (
             <div className="flex w-full flex-col items-center gap-1.5">
               <p className="text-xs leading-[1.5]" style={{ color: "var(--color-text-secondary)", letterSpacing: "0.77px" }}>
-                事件
+                因為
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {tags.event.map((label) => (
@@ -467,8 +421,6 @@ export default function RecordMoodSheet({ onClose }) {
   const [step, setStep] = useState("mood");
   // Index into SLIDER_MOODS (0–6). Defaults to the far-right 非常愉快, matching the prior slider.
   const [moodIndex, setMoodIndex] = useState(SLIDER_MOODS.length - 1);
-  // The chat recap shown on the completion page (also persisted to context for the Review sheet).
-  const [chatSummary, setChatSummary] = useState("");
   // Tags extracted for the completion page: { emotion: [...], event: [...] }.
   const [chatTags, setChatTags] = useState({ emotion: [], event: [] });
   // `drag` must be OFF during any programmatic (non-gesture) animation of `y` — Framer Motion's
@@ -513,7 +465,6 @@ export default function RecordMoodSheet({ onClose }) {
   // summary and only an 情緒 tag (from the mood) — no 事件 tags without a conversation.
   const justLog = () => {
     setTodayMood(sliderMoodToCalendarCell(moodIndex));
-    setChatSummary("");
     const tags = composeChatTags(moodIndex, {});
     setChatTags(tags);
     setTodayTags(tags);
@@ -524,7 +475,6 @@ export default function RecordMoodSheet({ onClose }) {
   // and stash it in context so today's Review day-summary sheet shows the same thing.
   const finishChat = (recap) => {
     const summary = composeChatSummary(moodIndex, recap);
-    setChatSummary(summary);
     setTodaySummary(summary);
     const tags = composeChatTags(moodIndex, recap);
     setChatTags(tags);
@@ -578,7 +528,7 @@ export default function RecordMoodSheet({ onClose }) {
             onEnd={finishChat}
           />
         ) : (
-          <DoneStep moodIndex={moodIndex} summary={chatSummary} tags={chatTags} onDone={dismissToHome} />
+          <DoneStep moodIndex={moodIndex} tags={chatTags} onDone={dismissToHome} />
         )}
       </motion.div>
     </>

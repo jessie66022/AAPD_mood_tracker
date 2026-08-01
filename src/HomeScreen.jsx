@@ -26,9 +26,9 @@ export default function HomeScreen() {
               className="flex w-full items-center gap-1 text-sm whitespace-nowrap"
               style={{ color: "var(--color-text-secondary)", letterSpacing: "0.77px" }}
             >
-              <p>7月4日</p>
+              <p>7月31日</p>
               <p>•</p>
-              <p>週六</p>
+              <p>週五</p>
             </div>
             <p className="w-full text-2xl font-semibold" style={{ color: "var(--color-text-primary)" }}>
               嗨 Jessie

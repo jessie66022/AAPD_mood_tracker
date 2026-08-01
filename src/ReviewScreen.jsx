@@ -151,8 +151,9 @@ function MonthTab({ weekDays, onSelectDay }) {
       recorded: true,
       moodIndex,
       moodText: moodIndex == null ? "普通" : MOODS[moodIndex].label,
-      // Today's cell carries the 情緒 + 事件 tags and 和熊熊聊聊 recap from this session's record.
-      tags: isToday && todayTags ? [...todayTags.emotion, ...todayTags.event] : [],
+      // Today's cell carries the 事件 tags and 和熊熊聊聊 recap from this session's record. The mood
+      // is shown separately (bear + label), so only the 事件 tags go into the tag row.
+      tags: isToday && todayTags ? [...todayTags.event] : [],
       note: "",
       summary: isToday ? todaySummary : undefined,
     };
